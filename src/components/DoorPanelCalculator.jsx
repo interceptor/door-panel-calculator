@@ -21,35 +21,45 @@ const DoorPanelCalculator = () => {
 
     // Define proportion ratios for different arrangements
     const getProportionRatios = (count, type) => {
-      const ratios = {
-        2: {
-          equal: [1, 1],
-          golden: [1, phi],
-          classic: [1, 2],
-          reverse: [phi, 1]
-        },
-        3: {
-          equal: [1, 1, 1],
-          golden: [1, phi, phi * phi], // 1:φ:φ²
-          classic: [1, 2, 1], // Small-Large-Small
-          reverse: [phi * phi, phi, 1],
-          fibonacci: [1, 1, 2]
-        },
-        4: {
-          equal: [1, 1, 1, 1],
-          golden: [1, phi, phi * phi, phi * phi * phi],
-          classic: [1, 2, 2, 1],
-          reverse: [phi * phi * phi, phi * phi, phi, 1],
-          fibonacci: [1, 1, 2, 3]
-        },
-        5: {
-          equal: [1, 1, 1, 1, 1],
-          golden: [1, phi, phi * phi, phi, 1],
-          classic: [1, 2, 3, 2, 1],
-          fibonacci: [1, 1, 2, 3, 5]
-        }
-      };
-      return ratios[count]?.[type] || ratios[count]?.equal || [1];
+      if (count < 1) return [1];
+
+      // Generate ratios dynamically for any panel count
+      switch (type) {
+        case 'equal':
+          return Array(count).fill(1);
+
+        case 'golden':
+          // Golden progression: 1, φ, φ², φ³, ...
+          return Array.from({ length: count }, (_, i) => Math.pow(phi, i));
+
+        case 'reverse':
+          // Reverse golden progression: φⁿ⁻¹, φⁿ⁻², ..., φ, 1
+          return Array.from({ length: count }, (_, i) => Math.pow(phi, count - 1 - i));
+
+        case 'classic':
+          // Symmetric pattern: small edges, larger middle
+          if (count === 1) return [1];
+          if (count === 2) return [1, 2];
+          // For 3+: gradually increase to middle, then decrease
+          const half = Math.floor(count / 2);
+          const pattern = [];
+          for (let i = 0; i < count; i++) {
+            const distFromEdge = Math.min(i, count - 1 - i);
+            pattern.push(distFromEdge + 1);
+          }
+          return pattern;
+
+        case 'fibonacci':
+          // Fibonacci sequence: 1, 1, 2, 3, 5, 8, 13, ...
+          const fib = [1, 1];
+          for (let i = 2; i < count; i++) {
+            fib.push(fib[i - 1] + fib[i - 2]);
+          }
+          return fib.slice(0, count);
+
+        default:
+          return Array(count).fill(1);
+      }
     };
 
     const heightRatios = getProportionRatios(panelCount, proportionType);
@@ -128,25 +138,17 @@ const DoorPanelCalculator = () => {
   const getProportionDescription = () => {
     const descriptions = {
       equal: 'All panels same height',
-      golden: panelCount === 2 ? 'Height ratio 1:φ (1:1.618)' : 
-              panelCount === 3 ? 'Golden sequence 1:φ:φ²' : 
-              'Golden progression',
-      classic: panelCount === 2 ? 'Traditional 1:2 ratio' :
-               panelCount === 3 ? 'Small-Large-Small (1:2:1)' :
-               'Symmetric proportions',
-      reverse: 'Reverse golden sequence',
-      fibonacci: 'Fibonacci sequence proportions'
+      golden: 'Golden progression (1, φ, φ², φ³, ...)',
+      classic: 'Symmetric proportions (larger in middle)',
+      reverse: 'Reverse golden progression (largest at top)',
+      fibonacci: 'Fibonacci sequence (1, 1, 2, 3, 5, 8, ...)'
     };
     return descriptions[proportionType] || '';
   };
 
   const availableProportions = useMemo(() => {
-    const base = ['equal', 'golden', 'classic'];
-    if (panelCount >= 3) {
-      base.push('reverse', 'fibonacci');
-    }
-    return base;
-  }, [panelCount]);
+    return ['equal', 'golden', 'classic', 'reverse', 'fibonacci'];
+  }, []);
 
   return (
     <div className="max-w-7xl mx-auto p-6 bg-white">
@@ -184,16 +186,14 @@ const DoorPanelCalculator = () => {
             <div className="grid grid-cols-3 gap-4 mb-4">
               <div>
                 <label className="block text-sm font-medium mb-2">Panel Count</label>
-                <select
+                <input
+                  type="number"
+                  min="1"
+                  max="50"
                   value={panelCount}
                   onChange={(e) => setPanelCount(Number(e.target.value))}
                   className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value={2}>2 Panels</option>
-                  <option value={3}>3 Panels</option>
-                  <option value={4}>4 Panels</option>
-                  <option value={5}>5 Panels</option>
-                </select>
+                />
               </div>
               <div>
                 <label className="block text-sm font-medium mb-2">Edge Distance (cm)</label>
