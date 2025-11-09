@@ -135,7 +135,7 @@ const DoorPanelCalculator = () => {
   const scaledDoorWidth = doorWidth * scale;
   const scaledDoorHeight = doorHeight * scale;
 
-  const getProportionDescription = () => {
+  const getProportionDescription = (type) => {
     const descriptions = {
       equal: 'All panels same height',
       golden: 'Golden progression (1, φ, φ², φ³, ...)',
@@ -143,7 +143,7 @@ const DoorPanelCalculator = () => {
       reverse: 'Reverse golden progression (largest at top)',
       fibonacci: 'Fibonacci sequence (1, 1, 2, 3, 5, 8, ...)'
     };
-    return descriptions[proportionType] || '';
+    return descriptions[type] || '';
   };
 
   const availableProportions = useMemo(() => {
@@ -279,11 +279,13 @@ const DoorPanelCalculator = () => {
                     <div className="flex-1">
                       <span className="font-medium capitalize">{prop}</span>
                       <div className="text-sm text-gray-600 mt-1">
-                        {getProportionDescription()}
+                        {getProportionDescription(prop)}
                       </div>
-                      <div className="text-xs text-gray-500 mt-1">
-                        Ratios: {calculations.heightRatios.map(r => r.toFixed(2)).join(' : ')}
-                      </div>
+                      {proportionType === prop && (
+                        <div className="text-xs text-gray-500 mt-1">
+                          Ratios: {calculations.heightRatios.map(r => r.toFixed(2)).join(' : ')}
+                        </div>
+                      )}
                     </div>
                   </label>
                 ))}
