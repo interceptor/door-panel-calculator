@@ -21,29 +21,31 @@ const DoorPanelCalculator = () => {
     let calculatedPanelGap = panelGap;
 
     if (autoCalculateSpacing) {
-      // Calculate optimal spacing that ensures panels fit while maintaining golden ratio
-      // Use both width and height to determine proportional spacing
-      // Edge distance should be proportional to the overall door size
+      // Calculate spacing where panel area : negative space = φ : 1 (golden ratio)
+      // Negative space = 2*edge + (panelCount-1)*gap
+      // Panel space = doorHeight - negative space
+      // We want: panel space / negative space = φ
+      // Also maintain: gap = edge / φ (so gaps relate to edges by golden ratio)
 
-      // Use the geometric mean of width and height for balanced proportions
-      const doorDimension = Math.sqrt(doorWidth * doorHeight);
+      // Let edge = e, gap = e/φ
+      // Negative space = 2e + (panelCount-1)*e/φ = e * (2 + (panelCount-1)/φ)
+      // Panel space = doorHeight - e * (2 + (panelCount-1)/φ)
+      //
+      // We want: [doorHeight - e * (2 + (panelCount-1)/φ)] / [e * (2 + (panelCount-1)/φ)] = φ
+      // Solving: doorHeight - e*k = φ*e*k  (where k = 2 + (panelCount-1)/φ)
+      //         doorHeight = e*k + φ*e*k = e*k*(1 + φ)
+      //         e = doorHeight / (k * (1 + φ))
 
-      // Base edge distance on overall door size (about 5-7% of geometric mean)
-      const baseEdge = doorDimension / 20;
-
-      // For height: ensure panels fit
-      // Total space = 2*edge + (panelCount-1)*gap + panelSpace
-      // We want: gap = edge / φ
-      const panelSpaceRatio = 0.75; // Allocate 75% of door height to panels
-      const remainingHeightSpace = doorHeight * (1 - panelSpaceRatio);
-
-      // Calculate edge based on height constraint
-      const edgeFactor = 2 + (panelCount - 1) / phi;
-      const heightBasedEdge = remainingHeightSpace / edgeFactor;
-
-      // Use the smaller of the two to ensure everything fits
-      calculatedEdgeDistance = Math.min(baseEdge, heightBasedEdge);
+      const k = 2 + (panelCount - 1) / phi;
+      calculatedEdgeDistance = doorHeight / (k * (1 + phi));
       calculatedPanelGap = calculatedEdgeDistance / phi;
+
+      // Safety check: ensure edge distance is reasonable relative to door width too
+      const maxEdge = doorWidth / 8; // Edge shouldn't be more than 12.5% of width
+      if (calculatedEdgeDistance > maxEdge) {
+        calculatedEdgeDistance = maxEdge;
+        calculatedPanelGap = calculatedEdgeDistance / phi;
+      }
     }
 
     const availableWidth = doorWidth - (2 * calculatedEdgeDistance);
