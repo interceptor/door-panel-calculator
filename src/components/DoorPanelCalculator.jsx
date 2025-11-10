@@ -198,7 +198,7 @@ const DoorPanelCalculator = () => {
     let actualPeepholeTop = peepholeTop;
     let peepholeInGap = false;
     if (showPeephole && autoCenterPeephole) {
-      const idealHeight = doorHeight - 170; // 160-180cm from bottom, aim for 170
+      const idealHeight = doorHeight - 162.5; // 145-180cm from bottom, aim for 162.5 (middle)
       const peepholeRadius = peepholeDiameter / 2;
 
       // Find best position (centered in gap or panel)
@@ -525,7 +525,7 @@ const DoorPanelCalculator = () => {
                         className="mr-2"
                       />
                       <label htmlFor="autoCenterPeephole" className="text-sm font-medium">
-                        Auto-center peephole (optimal height: 160-180cm from bottom)
+                        Auto-center peephole (optimal height: 145-180cm from bottom)
                       </label>
                     </div>
 
@@ -751,7 +751,7 @@ const DoorPanelCalculator = () => {
                 strokeDasharray="5,5"
               />
 
-              {/* Peephole target zone (160-180cm from bottom) */}
+              {/* Peephole target zone (145-180cm from bottom) */}
               {showPeephole && (
                 <g>
                   {/* Lower bound (180cm from bottom = doorHeight - 180) */}
@@ -775,12 +775,12 @@ const DoorPanelCalculator = () => {
                     180cm
                   </text>
 
-                  {/* Upper bound (160cm from bottom = doorHeight - 160) */}
+                  {/* Upper bound (145cm from bottom = doorHeight - 145) */}
                   <line
                     x1={20}
-                    y1={20 + (doorHeight - 160) * scale}
+                    y1={20 + (doorHeight - 145) * scale}
                     x2={20 + scaledDoorWidth}
-                    y2={20 + (doorHeight - 160) * scale}
+                    y2={20 + (doorHeight - 145) * scale}
                     stroke="#4A90E2"
                     strokeWidth="1.5"
                     strokeDasharray="8,4"
@@ -788,12 +788,12 @@ const DoorPanelCalculator = () => {
                   />
                   <text
                     x={20 + scaledDoorWidth + 5}
-                    y={20 + (doorHeight - 160) * scale}
+                    y={20 + (doorHeight - 145) * scale}
                     fontSize="9"
                     fill="#4A90E2"
                     dominantBaseline="middle"
                   >
-                    160cm
+                    145cm
                   </text>
 
                   {/* Target zone shading */}
@@ -801,7 +801,7 @@ const DoorPanelCalculator = () => {
                     x={20}
                     y={20 + (doorHeight - 180) * scale}
                     width={scaledDoorWidth}
-                    height={(180 - 160) * scale}
+                    height={(180 - 145) * scale}
                     fill="#4A90E2"
                     opacity="0.08"
                   />
@@ -809,7 +809,7 @@ const DoorPanelCalculator = () => {
                   {/* Label for target zone */}
                   <text
                     x={25}
-                    y={20 + (doorHeight - 170) * scale}
+                    y={20 + (doorHeight - 162.5) * scale}
                     fontSize="10"
                     fill="#4A90E2"
                     fontWeight="bold"
