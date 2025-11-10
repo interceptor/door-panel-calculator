@@ -144,9 +144,27 @@ const DoorPanelCalculator = () => {
         }
 
         peepholeConflicts.push(conflict);
-        currentY = panelBottom + panelGap;
+        currentY = panelBottom + calculatedPanelGap;
       }
     }
+
+    // Calculate areas for verification
+    const totalDoorArea = doorWidth * doorHeight;
+    const totalPanelArea = panelHeights.reduce((sum, h) => sum + h * panelWidth, 0);
+
+    // Negative space = total door area - panel area
+    const negativeSpaceArea = totalDoorArea - totalPanelArea;
+
+    // Calculate the ratio: should be φ when auto-calculate is enabled
+    const actualRatio = totalPanelArea / negativeSpaceArea;
+    const ratioError = Math.abs(actualRatio - phi) / phi * 100; // Error percentage
+
+    // Break down negative space
+    const edgeArea = (2 * calculatedEdgeDistance * doorWidth) + // top and bottom edges
+                     (2 * calculatedEdgeDistance * doorHeight) - // left and right edges
+                     (4 * calculatedEdgeDistance * calculatedEdgeDistance); // corners counted twice
+    const gapArea = totalGaps * panelWidth;
+    const remainingNegativeSpace = negativeSpaceArea - edgeArea - gapArea;
 
     return {
       phi,
@@ -162,7 +180,16 @@ const DoorPanelCalculator = () => {
       panelPositions,
       peepholeConflicts,
       calculatedEdgeDistance,
-      calculatedPanelGap
+      calculatedPanelGap,
+      // Verification data
+      totalDoorArea,
+      totalPanelArea,
+      negativeSpaceArea,
+      actualRatio,
+      ratioError,
+      edgeArea,
+      gapArea,
+      remainingNegativeSpace
     };
   }, [doorWidth, doorHeight, edgeDistance, panelGap, panelCount, proportionType, showPeephole, peepholeTop, peepholeHeight, autoCalculateSpacing]);
 
@@ -374,12 +401,49 @@ const DoorPanelCalculator = () => {
               </div>
               <p><strong>Golden ratio (φ):</strong> {calculations.phi.toFixed(4)}</p>
               <p><strong>Total used height:</strong> {calculations.totalUsedHeight.toFixed(1)} / {calculations.availableHeight} cm</p>
-              {calculations.fits ? 
+              {calculations.fits ?
                 <p className="text-green-600 font-medium">✓ All panels fit perfectly</p> :
                 <p className="text-red-600 font-medium">⚠️ Panels don't fit - reduce panel count or gaps</p>
               }
             </div>
           </div>
+
+          {autoCalculateSpacing && (
+            <div className="bg-purple-50 p-6 rounded-lg border-2 border-purple-200">
+              <h2 className="text-xl font-semibold mb-4 text-purple-900">Golden Ratio Verification</h2>
+              <div className="space-y-3 text-sm">
+                <div className="bg-white p-3 rounded">
+                  <p className="font-medium mb-2">Area Breakdown:</p>
+                  <p className="ml-4">• Total door area: {calculations.totalDoorArea.toFixed(1)} cm²</p>
+                  <p className="ml-4">• Panel area: {calculations.totalPanelArea.toFixed(1)} cm² ({(calculations.totalPanelArea / calculations.totalDoorArea * 100).toFixed(1)}%)</p>
+                  <p className="ml-4">• Negative space: {calculations.negativeSpaceArea.toFixed(1)} cm² ({(calculations.negativeSpaceArea / calculations.totalDoorArea * 100).toFixed(1)}%)</p>
+                </div>
+
+                <div className="bg-white p-3 rounded">
+                  <p className="font-medium mb-2">Negative Space Breakdown:</p>
+                  <p className="ml-4">• Edge frame area: {calculations.edgeArea.toFixed(1)} cm²</p>
+                  <p className="ml-4">• Panel gaps area: {calculations.gapArea.toFixed(1)} cm²</p>
+                  <p className="ml-4">• Other space: {calculations.remainingNegativeSpace.toFixed(1)} cm²</p>
+                </div>
+
+                <div className="bg-white p-3 rounded">
+                  <p className="font-medium mb-2">Golden Ratio Check:</p>
+                  <p className="ml-4">• Target ratio (φ): {calculations.phi.toFixed(6)}</p>
+                  <p className="ml-4">• Actual ratio (Panel/Negative): {calculations.actualRatio.toFixed(6)}</p>
+                  <p className={`ml-4 font-medium ${calculations.ratioError < 1 ? 'text-green-600' : calculations.ratioError < 5 ? 'text-yellow-600' : 'text-red-600'}`}>
+                    • Error: {calculations.ratioError.toFixed(2)}%
+                    {calculations.ratioError < 1 ? ' ✓ Excellent!' : calculations.ratioError < 5 ? ' ⚠ Close' : ' ✗ Needs adjustment'}
+                  </p>
+                </div>
+
+                <div className="bg-purple-100 p-3 rounded">
+                  <p className="text-xs text-purple-900">
+                    <strong>Note:</strong> When auto-calculate is enabled, the panel area should be φ times (≈1.618×) the negative space area, creating harmonious golden ratio proportions for the entire door.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Visualization */}
