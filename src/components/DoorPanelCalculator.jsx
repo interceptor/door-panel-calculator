@@ -9,7 +9,9 @@ const DoorPanelCalculator = () => {
   const [proportionType, setProportionType] = useState('golden');
   const [showPeephole, setShowPeephole] = useState(false);
   const [peepholeTop, setPeepholeTop] = useState(45);
-  const [peepholeHeight, setPeepholeHeight] = useState(6);
+  const [peepholeDiameter, setPeepholeDiameter] = useState(6);
+  const [minEdgeDistance, setMinEdgeDistance] = useState(10);
+  const [autoCenterPeephole, setAutoCenterPeephole] = useState(false);
   const [isProportionsCollapsed, setIsProportionsCollapsed] = useState(false);
   const [autoCalculateSpacing, setAutoCalculateSpacing] = useState(false);
   const [spacingRatioType, setSpacingRatioType] = useState('golden');
@@ -181,44 +183,116 @@ const DoorPanelCalculator = () => {
     // Add small epsilon for floating point tolerance
     const fits = autoCalculateSpacing ? true : (totalUsedHeight <= availableHeight + 0.01);
 
-    // Calculate panel positions and peephole conflicts
-    let currentY = edgeDistance;
+    // Calculate panel positions first
+    let currentY = calculatedEdgeDistance;
     const panelPositions = [];
+    for (let i = 0; i < panelHeights.length; i++) {
+      const panelTop = currentY;
+      const panelBottom = currentY + panelHeights[i];
+      panelPositions.push({ top: panelTop, bottom: panelBottom, height: panelHeights[i] });
+      currentY = panelBottom + calculatedPanelGap;
+    }
+
+    // Auto-calculate peephole position if enabled
+    let actualPeepholeTop = peepholeTop;
+    if (showPeephole && autoCenterPeephole) {
+      const idealHeight = doorHeight - 170; // 160-180cm from bottom, aim for 170
+      const peepholeRadius = peepholeDiameter / 2;
+
+      // Find best position (centered in gap or panel)
+      let bestPosition = idealHeight;
+      let bestScore = Infinity;
+
+      // Check gaps between panels
+      for (let i = 0; i < panelPositions.length - 1; i++) {
+        const gapTop = panelPositions[i].bottom;
+        const gapBottom = panelPositions[i + 1].top;
+        const gapCenter = (gapTop + gapBottom) / 2;
+        const score = Math.abs(gapCenter - idealHeight);
+
+        // Ensure peephole fits in gap
+        if (gapCenter - peepholeRadius >= gapTop && gapCenter + peepholeRadius <= gapBottom) {
+          if (score < bestScore) {
+            bestScore = score;
+            bestPosition = gapCenter - peepholeRadius;
+          }
+        }
+      }
+
+      // Check inside panels
+      for (let i = 0; i < panelPositions.length; i++) {
+        const panelCenter = (panelPositions[i].top + panelPositions[i].bottom) / 2;
+        const score = Math.abs(panelCenter - idealHeight);
+
+        // Ensure peephole fits with min edge distance from panel edges
+        if (panelCenter - peepholeRadius >= panelPositions[i].top + minEdgeDistance &&
+            panelCenter + peepholeRadius <= panelPositions[i].bottom - minEdgeDistance) {
+          if (score < bestScore) {
+            bestScore = score;
+            bestPosition = panelCenter - peepholeRadius;
+          }
+        }
+      }
+
+      actualPeepholeTop = bestPosition;
+    }
+
+    // Calculate peephole conflicts
     const peepholeConflicts = [];
+    let peepholeCoordinates = null;
 
     if (showPeephole) {
-      const peepholeBottom = peepholeTop + peepholeHeight;
-      const peepholeCenter = peepholeTop + peepholeHeight / 2;
+      const peepholeRadius = peepholeDiameter / 2;
+      const peepholeCenter = actualPeepholeTop + peepholeRadius;
+      const peepholeBottom = actualPeepholeTop + peepholeDiameter;
 
-      for (let i = 0; i < panelHeights.length; i++) {
-        const panelTop = currentY;
-        const panelBottom = currentY + panelHeights[i];
-        panelPositions.push({ top: panelTop, bottom: panelBottom, height: panelHeights[i] });
+      // Coordinates relative to door (from bottom-left)
+      peepholeCoordinates = {
+        fromLeft: doorWidth / 2, // Centered horizontally
+        fromBottom: doorHeight - peepholeCenter,
+        fromTop: peepholeCenter,
+        centerY: peepholeCenter
+      };
 
-        // Check peephole conflicts
+      for (let i = 0; i < panelPositions.length; i++) {
+        const panelTop = panelPositions[i].top;
+        const panelBottom = panelPositions[i].bottom;
+
         let conflict = null;
-        if (peepholeTop >= panelTop && peepholeBottom <= panelBottom) {
-          const distFromTop = peepholeCenter - panelTop;
-          const distFromBottom = panelBottom - peepholeCenter;
+
+        // Check if peephole is inside this panel
+        if (peepholeCenter >= panelTop && peepholeCenter <= panelBottom) {
+          const distFromTop = peepholeCenter - peepholeRadius - panelTop;
+          const distFromBottom = panelBottom - (peepholeCenter + peepholeRadius);
           const minDist = Math.min(distFromTop, distFromBottom);
-          conflict = {
-            type: minDist < 10 ? 'too-close-to-edge' : 'inside-safe',
-            distance: minDist,
-            message: minDist < 10 ? `Too close to edge (${minDist.toFixed(1)}cm)` : `Safely centered (${minDist.toFixed(1)}cm from edge)`
-          };
-        } else if ((peepholeTop < panelBottom && peepholeBottom > panelTop)) {
+
+          if (minDist < minEdgeDistance) {
+            conflict = {
+              type: 'too-close-to-edge',
+              distance: minDist,
+              message: `Peephole edge is ${minDist.toFixed(1)}cm from panel edge (minimum ${minEdgeDistance}cm recommended)`
+            };
+          } else {
+            conflict = {
+              type: 'inside-safe',
+              distance: minDist,
+              message: `Safely positioned ${minDist.toFixed(1)}cm from nearest panel edge`
+            };
+          }
+        }
+        // Check if peephole crosses panel boundary
+        else if ((actualPeepholeTop < panelBottom && peepholeBottom > panelTop)) {
           const distFromTop = Math.abs(peepholeCenter - panelTop);
           const distFromBottom = Math.abs(peepholeCenter - panelBottom);
           const minDist = Math.min(distFromTop, distFromBottom);
           conflict = {
-            type: 'on-edge',
+            type: 'crosses-edge',
             distance: minDist,
-            message: `On panel edge (${minDist.toFixed(1)}cm away) - BAD!`
+            message: `Peephole crosses panel boundary - ${minDist.toFixed(1)}cm from edge`
           };
         }
 
         peepholeConflicts.push(conflict);
-        currentY = panelBottom + calculatedPanelGap;
       }
     }
 
@@ -264,9 +338,11 @@ const DoorPanelCalculator = () => {
       edgeArea,
       gapArea,
       remainingNegativeSpace,
-      targetRatio
+      targetRatio,
+      peepholeCoordinates,
+      actualPeepholeTop
     };
-  }, [doorWidth, doorHeight, edgeDistance, panelGap, panelCount, proportionType, showPeephole, peepholeTop, peepholeHeight, autoCalculateSpacing, spacingRatioType]);
+  }, [doorWidth, doorHeight, edgeDistance, panelGap, panelCount, proportionType, showPeephole, peepholeTop, peepholeDiameter, minEdgeDistance, autoCenterPeephole, autoCalculateSpacing, spacingRatioType]);
 
   // Scale factor for visualization
   const scale = 380 / doorWidth;
@@ -409,25 +485,62 @@ const DoorPanelCalculator = () => {
                 <label htmlFor="showPeephole" className="font-medium">Show Peephole Cutout</label>
               </div>
               {showPeephole && (
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-2">Distance from Top (cm)</label>
+                <div className="space-y-4">
+                  <div className="flex items-center">
                     <input
-                      type="number"
-                      value={peepholeTop}
-                      onChange={(e) => setPeepholeTop(Number(e.target.value))}
-                      className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
+                      type="checkbox"
+                      id="autoCenterPeephole"
+                      checked={autoCenterPeephole}
+                      onChange={(e) => setAutoCenterPeephole(e.target.checked)}
+                      className="mr-2"
                     />
+                    <label htmlFor="autoCenterPeephole" className="text-sm font-medium">
+                      Auto-center peephole (optimal height: 160-180cm from bottom)
+                    </label>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-2">Peephole Height (cm)</label>
-                    <input
-                      type="number"
-                      value={peepholeHeight}
-                      onChange={(e) => setPeepholeHeight(Number(e.target.value))}
-                      className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
-                    />
+
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Distance from Top (cm)</label>
+                      <input
+                        type="number"
+                        value={autoCenterPeephole ? calculations.actualPeepholeTop.toFixed(1) : peepholeTop}
+                        onChange={(e) => setPeepholeTop(Number(e.target.value))}
+                        disabled={autoCenterPeephole}
+                        className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 disabled:bg-gray-200 disabled:cursor-not-allowed"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Diameter (cm)</label>
+                      <input
+                        type="number"
+                        value={peepholeDiameter}
+                        onChange={(e) => setPeepholeDiameter(Number(e.target.value))}
+                        className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Min Edge Distance (cm)</label>
+                      <input
+                        type="number"
+                        value={minEdgeDistance}
+                        onChange={(e) => setMinEdgeDistance(Number(e.target.value))}
+                        className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
                   </div>
+
+                  {calculations.peepholeCoordinates && (
+                    <div className="bg-blue-50 p-3 rounded text-sm">
+                      <p className="font-medium mb-1">Peephole Position:</p>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <p>• From bottom: {calculations.peepholeCoordinates.fromBottom.toFixed(1)} cm</p>
+                        <p>• From top: {calculations.peepholeCoordinates.fromTop.toFixed(1)} cm</p>
+                        <p>• From left: {calculations.peepholeCoordinates.fromLeft.toFixed(1)} cm (centered)</p>
+                        <p>• Diameter: {peepholeDiameter} cm</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -485,14 +598,17 @@ const DoorPanelCalculator = () => {
                   <div key={index} className="ml-4 text-sm flex justify-between items-center">
                     <span>Panel {index + 1}: {height.toFixed(1)} cm</span>
                     {showPeephole && calculations.peepholeConflicts[index] && (
-                      <span className={`text-xs px-2 py-1 rounded ${
-                        calculations.peepholeConflicts[index].type === 'inside-safe' ? 'bg-green-100 text-green-700' :
-                        calculations.peepholeConflicts[index].type === 'too-close-to-edge' ? 'bg-yellow-100 text-yellow-700' :
-                        'bg-red-100 text-red-700'
-                      }`}>
+                      <span
+                        className={`text-xs px-2 py-1 rounded ${
+                          calculations.peepholeConflicts[index].type === 'inside-safe' ? 'bg-green-100 text-green-700' :
+                          calculations.peepholeConflicts[index].type === 'too-close-to-edge' ? 'bg-yellow-100 text-yellow-700' :
+                          'bg-red-100 text-red-700'
+                        }`}
+                        title={calculations.peepholeConflicts[index].message}
+                      >
                         {calculations.peepholeConflicts[index].type === 'inside-safe' ? '✓ Safe' :
-                         calculations.peepholeConflicts[index].type === 'too-close-to-edge' ? '⚠ Close' :
-                         '✗ Edge'}
+                         calculations.peepholeConflicts[index].type === 'too-close-to-edge' ? '⚠ Too close' :
+                         '✗ Crosses edge'}
                       </span>
                     )}
                   </div>
@@ -623,20 +739,19 @@ const DoorPanelCalculator = () => {
               {/* Peephole */}
               {showPeephole && (
                 <g>
-                  {/* Peephole cutout */}
-                  <rect
-                    x={20 + (doorWidth / 2 - 1) * scale} // 2cm wide, centered
-                    y={20 + peepholeTop * scale}
-                    width={2 * scale}
-                    height={peepholeHeight * scale}
+                  {/* Peephole cutout - rendered as circle */}
+                  <circle
+                    cx={20 + (doorWidth / 2) * scale} // Centered horizontally
+                    cy={20 + (calculations.actualPeepholeTop + peepholeDiameter/2) * scale}
+                    r={(peepholeDiameter / 2) * scale}
                     fill="#000"
                     stroke="#666"
-                    strokeWidth="1"
+                    strokeWidth="1.5"
                   />
                   {/* Peephole label */}
                   <text
-                    x={20 + (doorWidth / 2 + 3) * scale}
-                    y={20 + (peepholeTop + peepholeHeight/2) * scale}
+                    x={20 + (doorWidth / 2 + peepholeDiameter/2 + 2) * scale}
+                    y={20 + (calculations.actualPeepholeTop + peepholeDiameter/2) * scale}
                     fontSize="10"
                     fill="#666"
                     dominantBaseline="middle"
