@@ -177,7 +177,9 @@ const DoorPanelCalculator = () => {
     const panelWidth = availableWidth;
     
     const totalUsedHeight = panelHeights.reduce((sum, h) => sum + h, 0) + totalGaps;
-    const fits = totalUsedHeight <= availableHeight;
+    // When auto-calculate is on, panels always fit by design. Only check fit for manual mode.
+    // Add small epsilon for floating point tolerance
+    const fits = autoCalculateSpacing ? true : (totalUsedHeight <= availableHeight + 0.01);
 
     // Calculate panel positions and peephole conflicts
     let currentY = edgeDistance;
@@ -582,7 +584,7 @@ const DoorPanelCalculator = () => {
               />
 
               {/* Panels */}
-              {calculations.fits && calculations.panelHeights.map((height, index) => {
+              {(autoCalculateSpacing || calculations.fits) && calculations.panelHeights.map((height, index) => {
                 const panelY = 20 + calculations.calculatedEdgeDistance * scale +
                   calculations.panelHeights.slice(0, index).reduce((sum, h) => sum + h, 0) * scale +
                   index * calculations.calculatedPanelGap * scale;
