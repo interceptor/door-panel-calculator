@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 
 const DoorPanelCalculator = () => {
   const [doorWidth, setDoorWidth] = useState(103);
-  const [doorHeight, setDoorHeight] = useState(201);
+  const [doorHeight, setDoorHeight] = useState(203);
   const [edgeDistance, setEdgeDistance] = useState(15);
   const [panelGap, setPanelGap] = useState(10);
   const [panelCount, setPanelCount] = useState(2);
@@ -103,23 +103,18 @@ const DoorPanelCalculator = () => {
         const e1 = (-b + Math.sqrt(discriminant)) / (2 * a);
         const e2 = (-b - Math.sqrt(discriminant)) / (2 * a);
 
-        // Choose the smaller positive solution that makes sense
-        const candidateEdge = Math.max(0, Math.min(e1, e2));
+        // Choose the smaller positive solution
+        calculatedEdgeDistance = Math.min(Math.abs(e1), Math.abs(e2));
 
-        // Ensure it's reasonable (not too large) but recalculate if capped
-        const maxEdge = Math.min(doorWidth / 6, doorHeight / 10);
-
-        if (candidateEdge > maxEdge || candidateEdge < 1) {
-          // If the mathematical solution is too large, fall back to a simpler approach
-          // Allocate a reasonable percentage for edges and gaps
-          const reasonableEdge = Math.min(maxEdge, doorHeight / 12);
-          calculatedEdgeDistance = reasonableEdge;
-        } else {
-          calculatedEdgeDistance = candidateEdge;
+        // Sanity check: ensure it's positive and reasonable
+        if (calculatedEdgeDistance < 1 || calculatedEdgeDistance > doorHeight / 3) {
+          // If unreasonable, use a conservative fallback that guarantees fit
+          // Allocate 10% to edges and calculate gap to fit panels
+          calculatedEdgeDistance = doorHeight * 0.05;
         }
       } else {
-        // Fallback if no solution
-        calculatedEdgeDistance = Math.min(doorWidth, doorHeight) / 12;
+        // No mathematical solution exists - use conservative fallback
+        calculatedEdgeDistance = doorHeight * 0.05;
       }
 
       calculatedPanelGap = calculatedEdgeDistance / targetRatio;
