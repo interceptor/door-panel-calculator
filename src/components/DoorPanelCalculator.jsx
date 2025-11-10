@@ -21,31 +21,66 @@ const DoorPanelCalculator = () => {
     let calculatedPanelGap = panelGap;
 
     if (autoCalculateSpacing) {
-      // Calculate spacing where panel area : negative space = φ : 1 (golden ratio)
-      // Negative space = 2*edge + (panelCount-1)*gap
-      // Panel space = doorHeight - negative space
-      // We want: panel space / negative space = φ
+      // Calculate spacing where panel AREA : negative space AREA = φ : 1 (golden ratio)
+      // We want: totalPanelArea / negativeSpaceArea = φ
       // Also maintain: gap = edge / φ (so gaps relate to edges by golden ratio)
 
-      // Let edge = e, gap = e/φ
-      // Negative space = 2e + (panelCount-1)*e/φ = e * (2 + (panelCount-1)/φ)
-      // Panel space = doorHeight - e * (2 + (panelCount-1)/φ)
+      // Let edge = e, gap = g = e/φ
+      // Panel width = W - 2e
+      // Panel height total = H - 2e - (n-1)g = H - 2e - (n-1)e/φ
+      // Panel area = (W - 2e) × [H - 2e - (n-1)e/φ]
       //
-      // We want: [doorHeight - e * (2 + (panelCount-1)/φ)] / [e * (2 + (panelCount-1)/φ)] = φ
-      // Solving: doorHeight - e*k = φ*e*k  (where k = 2 + (panelCount-1)/φ)
-      //         doorHeight = e*k + φ*e*k = e*k*(1 + φ)
-      //         e = doorHeight / (k * (1 + φ))
+      // Negative space area = Total area - Panel area
+      //                     = WH - (W - 2e)[H - 2e - (n-1)e/φ]
+      //
+      // We want: Panel area / Negative area = φ
+      // So: Panel area = φ × Negative area
+      // And: Panel area + Negative area = WH
+      // Therefore: Panel area = φ/(1+φ) × WH  (since Panel = φ×Negative and Panel+Negative=WH)
+      //
+      // So: (W - 2e) × [H - 2e - (n-1)e/φ] = φ/(1+φ) × WH
+
+      // Simplified approach: solve iteratively or use approximation
+      // Let's expand and solve for e:
+      // Let k = 2 + (panelCount-1)/φ
+      // Panel height = H - ke
+      // Panel area = (W - 2e)(H - ke)
+      // We want: (W - 2e)(H - ke) = φ/(1+φ) × WH
+
+      // This is a quadratic in e. Let's solve:
+      // (W - 2e)(H - ke) = φ/(1+φ) × WH
+      // WH - kWe - 2He + 2ke² = φWH/(1+φ)
+      // 2ke² - (kW + 2H)e + WH - φWH/(1+φ) = 0
+      // 2ke² - (kW + 2H)e + WH/(1+φ) = 0
 
       const k = 2 + (panelCount - 1) / phi;
-      calculatedEdgeDistance = doorHeight / (k * (1 + phi));
-      calculatedPanelGap = calculatedEdgeDistance / phi;
+      const targetPanelRatio = phi / (1 + phi); // ≈ 0.618
 
-      // Safety check: ensure edge distance is reasonable relative to door width too
-      const maxEdge = doorWidth / 8; // Edge shouldn't be more than 12.5% of width
-      if (calculatedEdgeDistance > maxEdge) {
-        calculatedEdgeDistance = maxEdge;
-        calculatedPanelGap = calculatedEdgeDistance / phi;
+      const a = 2 * k;
+      const b = -(k * doorWidth + 2 * doorHeight);
+      const c = doorWidth * doorHeight / (1 + phi);
+
+      // Quadratic formula: e = [-b ± sqrt(b² - 4ac)] / 2a
+      const discriminant = b * b - 4 * a * c;
+
+      if (discriminant >= 0) {
+        const e1 = (-b + Math.sqrt(discriminant)) / (2 * a);
+        const e2 = (-b - Math.sqrt(discriminant)) / (2 * a);
+
+        // Choose the smaller positive solution that makes sense
+        calculatedEdgeDistance = Math.max(0, Math.min(e1, e2));
+
+        // Ensure it's reasonable (not too large)
+        const maxEdge = Math.min(doorWidth / 6, doorHeight / 8);
+        if (calculatedEdgeDistance > maxEdge || calculatedEdgeDistance < 1) {
+          calculatedEdgeDistance = maxEdge;
+        }
+      } else {
+        // Fallback if no solution
+        calculatedEdgeDistance = Math.min(doorWidth, doorHeight) / 10;
       }
+
+      calculatedPanelGap = calculatedEdgeDistance / phi;
     }
 
     const availableWidth = doorWidth - (2 * calculatedEdgeDistance);
