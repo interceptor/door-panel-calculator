@@ -236,28 +236,29 @@ const DoorPanelCalculator = () => {
 
       // Prioritize based on preference
       if (preferGapPlacement) {
-        // Try gaps first, then panels
-        const allCandidates = [...gapCandidates, ...panelCandidates];
-        // Give gaps a scoring advantage
-        allCandidates.forEach(c => {
-          if (c.inGap) c.score *= 0.8; // 20% bonus for gaps
-        });
-        const best = allCandidates.reduce((prev, curr) =>
-          curr.score < prev.score ? curr : prev,
-          { score: Infinity }
-        );
-        if (best.score !== Infinity) {
+        // Strongly prefer gaps: only use panels if no gaps available
+        if (gapCandidates.length > 0) {
+          // Choose the gap closest to ideal height
+          const best = gapCandidates.reduce((prev, curr) =>
+            curr.score < prev.score ? curr : prev
+          );
           bestPosition = best.position;
-          peepholeInGap = best.inGap;
+          peepholeInGap = true;
+        } else if (panelCandidates.length > 0) {
+          // No gaps available, fall back to panels
+          const best = panelCandidates.reduce((prev, curr) =>
+            curr.score < prev.score ? curr : prev
+          );
+          bestPosition = best.position;
+          peepholeInGap = false;
         }
       } else {
-        // Just pick the closest to ideal height
+        // Just pick the closest to ideal height regardless of gap or panel
         const allCandidates = [...gapCandidates, ...panelCandidates];
-        const best = allCandidates.reduce((prev, curr) =>
-          curr.score < prev.score ? curr : prev,
-          { score: Infinity }
-        );
-        if (best.score !== Infinity) {
+        if (allCandidates.length > 0) {
+          const best = allCandidates.reduce((prev, curr) =>
+            curr.score < prev.score ? curr : prev
+          );
           bestPosition = best.position;
           peepholeInGap = best.inGap;
         }
