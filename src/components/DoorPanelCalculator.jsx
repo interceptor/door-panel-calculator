@@ -104,16 +104,22 @@ const DoorPanelCalculator = () => {
         const e2 = (-b - Math.sqrt(discriminant)) / (2 * a);
 
         // Choose the smaller positive solution that makes sense
-        calculatedEdgeDistance = Math.max(0, Math.min(e1, e2));
+        const candidateEdge = Math.max(0, Math.min(e1, e2));
 
-        // Ensure it's reasonable (not too large)
-        const maxEdge = Math.min(doorWidth / 6, doorHeight / 8);
-        if (calculatedEdgeDistance > maxEdge || calculatedEdgeDistance < 1) {
-          calculatedEdgeDistance = maxEdge;
+        // Ensure it's reasonable (not too large) but recalculate if capped
+        const maxEdge = Math.min(doorWidth / 6, doorHeight / 10);
+
+        if (candidateEdge > maxEdge || candidateEdge < 1) {
+          // If the mathematical solution is too large, fall back to a simpler approach
+          // Allocate a reasonable percentage for edges and gaps
+          const reasonableEdge = Math.min(maxEdge, doorHeight / 12);
+          calculatedEdgeDistance = reasonableEdge;
+        } else {
+          calculatedEdgeDistance = candidateEdge;
         }
       } else {
         // Fallback if no solution
-        calculatedEdgeDistance = Math.min(doorWidth, doorHeight) / 10;
+        calculatedEdgeDistance = Math.min(doorWidth, doorHeight) / 12;
       }
 
       calculatedPanelGap = calculatedEdgeDistance / targetRatio;
@@ -122,7 +128,7 @@ const DoorPanelCalculator = () => {
     const availableWidth = doorWidth - (2 * calculatedEdgeDistance);
     const availableHeight = doorHeight - (2 * calculatedEdgeDistance);
     const totalGaps = (panelCount - 1) * calculatedPanelGap;
-    const availableHeightForPanels = availableHeight - totalGaps;
+    const availableHeightForPanels = Math.max(0, availableHeight - totalGaps);
 
     // Define proportion ratios for different arrangements
     const getProportionRatios = (count, type) => {
