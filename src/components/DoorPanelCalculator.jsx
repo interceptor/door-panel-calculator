@@ -12,53 +12,95 @@ const DoorPanelCalculator = () => {
   const [peepholeHeight, setPeepholeHeight] = useState(6);
   const [isProportionsCollapsed, setIsProportionsCollapsed] = useState(false);
   const [autoCalculateSpacing, setAutoCalculateSpacing] = useState(false);
+  const [spacingRatioType, setSpacingRatioType] = useState('golden');
+
+  // Define available ratios with their values and descriptions
+  const ratioTypes = {
+    golden: {
+      value: (1 + Math.sqrt(5)) / 2,
+      name: 'Golden Ratio (φ)',
+      description: 'Most famous in architecture. Used in Greek temples, Renaissance art, and classical door designs. Creates the most aesthetically pleasing proportions.',
+      usage: 'Recommended for classical and high-end doors'
+    },
+    sqrt2: {
+      value: Math.sqrt(2),
+      name: '√2 Ratio',
+      description: 'Used in ISO paper sizes (A4, etc.) and traditional Japanese architecture. Creates balanced, practical proportions.',
+      usage: 'Common in modern minimalist doors'
+    },
+    '3:2': {
+      value: 1.5,
+      name: '3:2 Ratio',
+      description: 'Classic photography ratio. Simple, harmonious proportions widely used in traditional craftsmanship and panel doors.',
+      usage: 'Very common in residential doors'
+    },
+    '4:3': {
+      value: 4/3,
+      name: '4:3 Ratio',
+      description: 'Traditional screen format. Provides slightly squarer panels, creating a more conservative, stable appearance.',
+      usage: 'Traditional and conservative door styles'
+    },
+    silver: {
+      value: 1 + Math.sqrt(2),
+      name: 'Silver Ratio (δₛ)',
+      description: 'Less known than golden ratio but equally elegant. Found in paper sizes and some Japanese temple proportions.',
+      usage: 'Elegant alternative to golden ratio'
+    },
+    '5:3': {
+      value: 5/3,
+      name: '5:3 Ratio',
+      description: 'Close to golden ratio but simpler. Used in European classical architecture and window proportions.',
+      usage: 'Good balance of elegance and simplicity'
+    }
+  };
 
   const calculations = useMemo(() => {
     const phi = (1 + Math.sqrt(5)) / 2;
+    const targetRatio = autoCalculateSpacing ? ratioTypes[spacingRatioType].value : phi;
 
     // Auto-calculate spacing based on golden ratio if enabled
     let calculatedEdgeDistance = edgeDistance;
     let calculatedPanelGap = panelGap;
 
     if (autoCalculateSpacing) {
-      // Calculate spacing where panel AREA : negative space AREA = φ : 1 (golden ratio)
-      // We want: totalPanelArea / negativeSpaceArea = φ
-      // Also maintain: gap = edge / φ (so gaps relate to edges by golden ratio)
+      // Calculate spacing where panel AREA : negative space AREA = targetRatio : 1
+      // We want: totalPanelArea / negativeSpaceArea = targetRatio
+      // Also maintain: gap = edge / targetRatio (so gaps relate to edges by the chosen ratio)
 
-      // Let edge = e, gap = g = e/φ
+      // Let edge = e, gap = g = e/ratio
       // Panel width = W - 2e
-      // Panel height total = H - 2e - (n-1)g = H - 2e - (n-1)e/φ
-      // Panel area = (W - 2e) × [H - 2e - (n-1)e/φ]
+      // Panel height total = H - 2e - (n-1)g = H - 2e - (n-1)e/ratio
+      // Panel area = (W - 2e) × [H - 2e - (n-1)e/ratio]
       //
       // Negative space area = Total area - Panel area
-      //                     = WH - (W - 2e)[H - 2e - (n-1)e/φ]
+      //                     = WH - (W - 2e)[H - 2e - (n-1)e/ratio]
       //
-      // We want: Panel area / Negative area = φ
-      // So: Panel area = φ × Negative area
+      // We want: Panel area / Negative area = ratio
+      // So: Panel area = ratio × Negative area
       // And: Panel area + Negative area = WH
-      // Therefore: Panel area = φ/(1+φ) × WH  (since Panel = φ×Negative and Panel+Negative=WH)
+      // Therefore: Panel area = ratio/(1+ratio) × WH  (since Panel = ratio×Negative and Panel+Negative=WH)
       //
-      // So: (W - 2e) × [H - 2e - (n-1)e/φ] = φ/(1+φ) × WH
+      // So: (W - 2e) × [H - 2e - (n-1)e/ratio] = ratio/(1+ratio) × WH
 
       // Simplified approach: solve iteratively or use approximation
       // Let's expand and solve for e:
-      // Let k = 2 + (panelCount-1)/φ
+      // Let k = 2 + (panelCount-1)/ratio
       // Panel height = H - ke
       // Panel area = (W - 2e)(H - ke)
-      // We want: (W - 2e)(H - ke) = φ/(1+φ) × WH
+      // We want: (W - 2e)(H - ke) = ratio/(1+ratio) × WH
 
       // This is a quadratic in e. Let's solve:
-      // (W - 2e)(H - ke) = φ/(1+φ) × WH
-      // WH - kWe - 2He + 2ke² = φWH/(1+φ)
-      // 2ke² - (kW + 2H)e + WH - φWH/(1+φ) = 0
-      // 2ke² - (kW + 2H)e + WH/(1+φ) = 0
+      // (W - 2e)(H - ke) = ratio/(1+ratio) × WH
+      // WH - kWe - 2He + 2ke² = ratio×WH/(1+ratio)
+      // 2ke² - (kW + 2H)e + WH - ratio×WH/(1+ratio) = 0
+      // 2ke² - (kW + 2H)e + WH/(1+ratio) = 0
 
-      const k = 2 + (panelCount - 1) / phi;
-      const targetPanelRatio = phi / (1 + phi); // ≈ 0.618
+      const k = 2 + (panelCount - 1) / targetRatio;
+      const targetPanelRatio = targetRatio / (1 + targetRatio);
 
       const a = 2 * k;
       const b = -(k * doorWidth + 2 * doorHeight);
-      const c = doorWidth * doorHeight / (1 + phi);
+      const c = doorWidth * doorHeight / (1 + targetRatio);
 
       // Quadratic formula: e = [-b ± sqrt(b² - 4ac)] / 2a
       const discriminant = b * b - 4 * a * c;
@@ -80,7 +122,7 @@ const DoorPanelCalculator = () => {
         calculatedEdgeDistance = Math.min(doorWidth, doorHeight) / 10;
       }
 
-      calculatedPanelGap = calculatedEdgeDistance / phi;
+      calculatedPanelGap = calculatedEdgeDistance / targetRatio;
     }
 
     const availableWidth = doorWidth - (2 * calculatedEdgeDistance);
@@ -190,9 +232,9 @@ const DoorPanelCalculator = () => {
     // Negative space = total door area - panel area
     const negativeSpaceArea = totalDoorArea - totalPanelArea;
 
-    // Calculate the ratio: should be φ when auto-calculate is enabled
+    // Calculate the ratio: should match targetRatio when auto-calculate is enabled
     const actualRatio = totalPanelArea / negativeSpaceArea;
-    const ratioError = Math.abs(actualRatio - phi) / phi * 100; // Error percentage
+    const ratioError = Math.abs(actualRatio - targetRatio) / targetRatio * 100; // Error percentage
 
     // Break down negative space
     const edgeArea = (2 * calculatedEdgeDistance * doorWidth) + // top and bottom edges
@@ -224,9 +266,10 @@ const DoorPanelCalculator = () => {
       ratioError,
       edgeArea,
       gapArea,
-      remainingNegativeSpace
+      remainingNegativeSpace,
+      targetRatio
     };
-  }, [doorWidth, doorHeight, edgeDistance, panelGap, panelCount, proportionType, showPeephole, peepholeTop, peepholeHeight, autoCalculateSpacing]);
+  }, [doorWidth, doorHeight, edgeDistance, panelGap, panelCount, proportionType, showPeephole, peepholeTop, peepholeHeight, autoCalculateSpacing, spacingRatioType]);
 
   // Scale factor for visualization
   const scale = 380 / doorWidth;
@@ -315,8 +358,8 @@ const DoorPanelCalculator = () => {
               </div>
             </div>
 
-            <div className="mt-4">
-              <div className="flex items-center">
+            <div className="mt-4 bg-blue-50 p-4 rounded border border-blue-200">
+              <div className="flex items-center mb-3">
                 <input
                   type="checkbox"
                   id="autoCalculateSpacing"
@@ -325,11 +368,35 @@ const DoorPanelCalculator = () => {
                   className="mr-2"
                 />
                 <label htmlFor="autoCalculateSpacing" className="text-sm font-medium">
-                  Auto-calculate spacing using golden ratio
+                  Auto-calculate spacing using proportional ratios
                 </label>
               </div>
-              <p className="text-xs text-gray-600 mt-1 ml-6">
-                Automatically determines edge distance and panel gaps to achieve golden ratio proportions for the entire door layout
+
+              {autoCalculateSpacing && (
+                <div className="ml-6 mb-3">
+                  <label className="block text-sm font-medium mb-2">Ratio Type:</label>
+                  <select
+                    value={spacingRatioType}
+                    onChange={(e) => setSpacingRatioType(e.target.value)}
+                    className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 text-sm"
+                  >
+                    {Object.entries(ratioTypes).map(([key, ratio]) => (
+                      <option key={key} value={key}>
+                        {ratio.name} (≈{ratio.value.toFixed(3)})
+                      </option>
+                    ))}
+                  </select>
+
+                  <div className="mt-2 p-3 bg-white rounded border border-blue-200 text-xs">
+                    <p className="font-medium text-blue-900 mb-1">{ratioTypes[spacingRatioType].name}</p>
+                    <p className="text-gray-700 mb-2">{ratioTypes[spacingRatioType].description}</p>
+                    <p className="text-blue-700 italic">💡 {ratioTypes[spacingRatioType].usage}</p>
+                  </div>
+                </div>
+              )}
+
+              <p className="text-xs text-gray-600 ml-6">
+                Automatically determines edge distance and panel gaps to achieve selected proportional ratio for the entire door layout
               </p>
             </div>
 
@@ -445,7 +512,9 @@ const DoorPanelCalculator = () => {
 
           {autoCalculateSpacing && (
             <div className="bg-purple-50 p-6 rounded-lg border-2 border-purple-200">
-              <h2 className="text-xl font-semibold mb-4 text-purple-900">Golden Ratio Verification</h2>
+              <h2 className="text-xl font-semibold mb-4 text-purple-900">
+                {ratioTypes[spacingRatioType].name} Verification
+              </h2>
               <div className="space-y-3 text-sm">
                 <div className="bg-white p-3 rounded">
                   <p className="font-medium mb-2">Area Breakdown:</p>
@@ -462,8 +531,8 @@ const DoorPanelCalculator = () => {
                 </div>
 
                 <div className="bg-white p-3 rounded">
-                  <p className="font-medium mb-2">Golden Ratio Check:</p>
-                  <p className="ml-4">• Target ratio (φ): {calculations.phi.toFixed(6)}</p>
+                  <p className="font-medium mb-2">Ratio Verification:</p>
+                  <p className="ml-4">• Target ratio: {calculations.targetRatio.toFixed(6)}</p>
                   <p className="ml-4">• Actual ratio (Panel/Negative): {calculations.actualRatio.toFixed(6)}</p>
                   <p className={`ml-4 font-medium ${calculations.ratioError < 1 ? 'text-green-600' : calculations.ratioError < 5 ? 'text-yellow-600' : 'text-red-600'}`}>
                     • Error: {calculations.ratioError.toFixed(2)}%
@@ -473,7 +542,7 @@ const DoorPanelCalculator = () => {
 
                 <div className="bg-purple-100 p-3 rounded">
                   <p className="text-xs text-purple-900">
-                    <strong>Note:</strong> When auto-calculate is enabled, the panel area should be φ times (≈1.618×) the negative space area, creating harmonious golden ratio proportions for the entire door.
+                    <strong>Note:</strong> When auto-calculate is enabled, the panel area should be {calculations.targetRatio.toFixed(3)}× the negative space area, creating harmonious {ratioTypes[spacingRatioType].name.toLowerCase()} proportions for the entire door.
                   </p>
                 </div>
               </div>
