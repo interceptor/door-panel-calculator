@@ -253,14 +253,21 @@ const DoorPanelCalculator = () => {
           peepholeInGap = false;
         }
       } else {
-        // Just pick the closest to ideal height regardless of gap or panel
-        const allCandidates = [...gapCandidates, ...panelCandidates];
-        if (allCandidates.length > 0) {
-          const best = allCandidates.reduce((prev, curr) =>
+        // Default: prefer panels over gaps (only use gaps if no panels available)
+        if (panelCandidates.length > 0) {
+          // Choose the panel closest to ideal height
+          const best = panelCandidates.reduce((prev, curr) =>
             curr.score < prev.score ? curr : prev
           );
           bestPosition = best.position;
-          peepholeInGap = best.inGap;
+          peepholeInGap = false;
+        } else if (gapCandidates.length > 0) {
+          // No panels available, fall back to gaps
+          const best = gapCandidates.reduce((prev, curr) =>
+            curr.score < prev.score ? curr : prev
+          );
+          bestPosition = best.position;
+          peepholeInGap = true;
         }
       }
 
@@ -576,8 +583,8 @@ const DoorPanelCalculator = () => {
                         </div>
                         <div className="ml-6 mt-1 text-xs text-gray-500 italic">
                           {preferGapPlacement
-                            ? '→ Will always prefer gaps, even if panel placement is closer to optimal height'
-                            : '→ Will choose the position closest to optimal height (may be gap or panel)'}
+                            ? '→ Will always prefer gaps over panels (only uses panels if no gaps fit)'
+                            : '→ Will prefer panels over gaps (only uses gaps if no panels fit)'}
                         </div>
                       </div>
                     )}
