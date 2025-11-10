@@ -10,7 +10,7 @@ const DoorPanelCalculator = () => {
   const [showPeephole, setShowPeephole] = useState(false);
   const [peepholeTop, setPeepholeTop] = useState(45);
   const [peepholeDiameter, setPeepholeDiameter] = useState(6);
-  const [minEdgeDistance, setMinEdgeDistance] = useState(10);
+  const [minEdgeDistance, setMinEdgeDistance] = useState(2);
   const [autoCenterPeephole, setAutoCenterPeephole] = useState(false);
   const [preferGapPlacement, setPreferGapPlacement] = useState(true);
   const [isProportionsCollapsed, setIsProportionsCollapsed] = useState(false);
@@ -214,8 +214,9 @@ const DoorPanelCalculator = () => {
         const gapCenter = (gapTop + gapBottom) / 2;
         const score = Math.abs(gapCenter - idealHeight);
 
-        // Ensure peephole fits in gap
-        if (gapCenter - peepholeRadius >= gapTop && gapCenter + peepholeRadius <= gapBottom) {
+        // Ensure peephole fits in gap with minimum edge distance from both panel edges
+        if (gapCenter - peepholeRadius >= gapTop + minEdgeDistance &&
+            gapCenter + peepholeRadius <= gapBottom - minEdgeDistance) {
           gapCandidates.push({ position: gapCenter - peepholeRadius, score, inGap: true });
         }
       }
@@ -268,6 +269,7 @@ const DoorPanelCalculator = () => {
     // Calculate peephole conflicts
     const peepholeConflicts = [];
     let peepholeCoordinates = null;
+    let peepholeGapStatus = null;
 
     if (showPeephole) {
       const peepholeRadius = peepholeDiameter / 2;
@@ -322,6 +324,33 @@ const DoorPanelCalculator = () => {
 
         peepholeConflicts.push(conflict);
       }
+
+      // Check if peephole is in a gap between panels
+      for (let i = 0; i < panelPositions.length - 1; i++) {
+        const gapTop = panelPositions[i].bottom;
+        const gapBottom = panelPositions[i + 1].top;
+
+        if (peepholeCenter > gapTop && peepholeCenter < gapBottom) {
+          const distFromTopPanel = actualPeepholeTop - gapTop;
+          const distFromBottomPanel = gapBottom - peepholeBottom;
+          const minDist = Math.min(distFromTopPanel, distFromBottomPanel);
+
+          if (minDist < minEdgeDistance) {
+            peepholeGapStatus = {
+              type: 'gap-too-close',
+              distance: minDist,
+              message: `Peephole in gap is ${minDist.toFixed(1)}cm from panel edge (minimum ${minEdgeDistance}cm recommended)`
+            };
+          } else {
+            peepholeGapStatus = {
+              type: 'gap-safe',
+              distance: minDist,
+              message: `Safely positioned in gap, ${minDist.toFixed(1)}cm from nearest panel edge`
+            };
+          }
+          break;
+        }
+      }
     }
 
     // Calculate areas for verification
@@ -355,6 +384,7 @@ const DoorPanelCalculator = () => {
       totalGaps,
       panelPositions,
       peepholeConflicts,
+      peepholeGapStatus,
       calculatedEdgeDistance,
       calculatedPanelGap,
       // Verification data
@@ -530,23 +560,32 @@ const DoorPanelCalculator = () => {
                     </div>
 
                     {autoCenterPeephole && (
-                      <div className="ml-6 flex items-center">
-                        <input
-                          type="checkbox"
-                          id="preferGapPlacement"
-                          checked={preferGapPlacement}
-                          onChange={(e) => setPreferGapPlacement(e.target.checked)}
-                          className="mr-2"
-                        />
-                        <label htmlFor="preferGapPlacement" className="text-xs text-gray-700">
-                          Prefer placement between panels (in gaps) when possible
-                        </label>
+                      <div className="ml-6">
+                        <div className="flex items-center">
+                          <input
+                            type="checkbox"
+                            id="preferGapPlacement"
+                            checked={preferGapPlacement}
+                            onChange={(e) => setPreferGapPlacement(e.target.checked)}
+                            className="mr-2"
+                          />
+                          <label htmlFor="preferGapPlacement" className="text-xs text-gray-700">
+                            Prioritize placement between panels (gaps) over inside panels
+                          </label>
+                        </div>
+                        <div className="ml-6 mt-1 text-xs text-gray-500 italic">
+                          {preferGapPlacement
+                            ? '→ Will choose gaps over panels when both options are at similar distances from optimal height'
+                            : '→ Will simply choose the position closest to optimal height regardless of gap or panel'}
+                        </div>
                       </div>
                     )}
 
                     {autoCenterPeephole && calculations.peepholeInGap !== undefined && (
-                      <div className="ml-6 text-xs text-blue-700">
-                        📍 Positioned {calculations.peepholeInGap ? 'between panels (in gap)' : 'inside a panel'}
+                      <div className="ml-6 mt-2 text-xs font-medium">
+                        <span className={calculations.peepholeInGap ? 'text-green-700' : 'text-blue-700'}>
+                          📍 Auto-positioned {calculations.peepholeInGap ? 'between panels (in gap)' : 'inside a panel'}
+                        </span>
                       </div>
                     )}
                   </div>
@@ -591,6 +630,19 @@ const DoorPanelCalculator = () => {
                         <p>• From left: {calculations.peepholeCoordinates.fromLeft.toFixed(1)} cm (centered)</p>
                         <p>• Diameter: {peepholeDiameter} cm</p>
                       </div>
+
+                      {calculations.peepholeGapStatus && (
+                        <div className={`mt-2 p-2 rounded border text-xs ${
+                          calculations.peepholeGapStatus.type === 'gap-safe'
+                            ? 'bg-green-50 border-green-300 text-green-800'
+                            : 'bg-yellow-50 border-yellow-300 text-yellow-800'
+                        }`}>
+                          <p className="font-medium">
+                            {calculations.peepholeGapStatus.type === 'gap-safe' ? '✓ Gap Placement Safe' : '⚠ Gap Placement Warning'}
+                          </p>
+                          <p className="mt-1">{calculations.peepholeGapStatus.message}</p>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
