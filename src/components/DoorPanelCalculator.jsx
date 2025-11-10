@@ -12,6 +12,7 @@ const DoorPanelCalculator = () => {
   const [peepholeDiameter, setPeepholeDiameter] = useState(6);
   const [minEdgeDistance, setMinEdgeDistance] = useState(10);
   const [autoCenterPeephole, setAutoCenterPeephole] = useState(false);
+  const [preferGapPlacement, setPreferGapPlacement] = useState(true);
   const [isProportionsCollapsed, setIsProportionsCollapsed] = useState(false);
   const [autoCalculateSpacing, setAutoCalculateSpacing] = useState(false);
   const [spacingRatioType, setSpacingRatioType] = useState('golden');
@@ -195,6 +196,7 @@ const DoorPanelCalculator = () => {
 
     // Auto-calculate peephole position if enabled
     let actualPeepholeTop = peepholeTop;
+    let peepholeInGap = false;
     if (showPeephole && autoCenterPeephole) {
       const idealHeight = doorHeight - 170; // 160-180cm from bottom, aim for 170
       const peepholeRadius = peepholeDiameter / 2;
@@ -202,8 +204,10 @@ const DoorPanelCalculator = () => {
       // Find best position (centered in gap or panel)
       let bestPosition = idealHeight;
       let bestScore = Infinity;
+      let bestInGap = false;
 
       // Check gaps between panels
+      const gapCandidates = [];
       for (let i = 0; i < panelPositions.length - 1; i++) {
         const gapTop = panelPositions[i].bottom;
         const gapBottom = panelPositions[i + 1].top;
@@ -212,14 +216,12 @@ const DoorPanelCalculator = () => {
 
         // Ensure peephole fits in gap
         if (gapCenter - peepholeRadius >= gapTop && gapCenter + peepholeRadius <= gapBottom) {
-          if (score < bestScore) {
-            bestScore = score;
-            bestPosition = gapCenter - peepholeRadius;
-          }
+          gapCandidates.push({ position: gapCenter - peepholeRadius, score, inGap: true });
         }
       }
 
       // Check inside panels
+      const panelCandidates = [];
       for (let i = 0; i < panelPositions.length; i++) {
         const panelCenter = (panelPositions[i].top + panelPositions[i].bottom) / 2;
         const score = Math.abs(panelCenter - idealHeight);
@@ -227,10 +229,36 @@ const DoorPanelCalculator = () => {
         // Ensure peephole fits with min edge distance from panel edges
         if (panelCenter - peepholeRadius >= panelPositions[i].top + minEdgeDistance &&
             panelCenter + peepholeRadius <= panelPositions[i].bottom - minEdgeDistance) {
-          if (score < bestScore) {
-            bestScore = score;
-            bestPosition = panelCenter - peepholeRadius;
-          }
+          panelCandidates.push({ position: panelCenter - peepholeRadius, score, inGap: false });
+        }
+      }
+
+      // Prioritize based on preference
+      if (preferGapPlacement) {
+        // Try gaps first, then panels
+        const allCandidates = [...gapCandidates, ...panelCandidates];
+        // Give gaps a scoring advantage
+        allCandidates.forEach(c => {
+          if (c.inGap) c.score *= 0.8; // 20% bonus for gaps
+        });
+        const best = allCandidates.reduce((prev, curr) =>
+          curr.score < prev.score ? curr : prev,
+          { score: Infinity }
+        );
+        if (best.score !== Infinity) {
+          bestPosition = best.position;
+          peepholeInGap = best.inGap;
+        }
+      } else {
+        // Just pick the closest to ideal height
+        const allCandidates = [...gapCandidates, ...panelCandidates];
+        const best = allCandidates.reduce((prev, curr) =>
+          curr.score < prev.score ? curr : prev,
+          { score: Infinity }
+        );
+        if (best.score !== Infinity) {
+          bestPosition = best.position;
+          peepholeInGap = best.inGap;
         }
       }
 
@@ -340,9 +368,10 @@ const DoorPanelCalculator = () => {
       remainingNegativeSpace,
       targetRatio,
       peepholeCoordinates,
-      actualPeepholeTop
+      actualPeepholeTop,
+      peepholeInGap
     };
-  }, [doorWidth, doorHeight, edgeDistance, panelGap, panelCount, proportionType, showPeephole, peepholeTop, peepholeDiameter, minEdgeDistance, autoCenterPeephole, autoCalculateSpacing, spacingRatioType]);
+  }, [doorWidth, doorHeight, edgeDistance, panelGap, panelCount, proportionType, showPeephole, peepholeTop, peepholeDiameter, minEdgeDistance, autoCenterPeephole, preferGapPlacement, autoCalculateSpacing, spacingRatioType]);
 
   // Scale factor for visualization
   const scale = 380 / doorWidth;
@@ -486,17 +515,40 @@ const DoorPanelCalculator = () => {
               </div>
               {showPeephole && (
                 <div className="space-y-4">
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
-                      id="autoCenterPeephole"
-                      checked={autoCenterPeephole}
-                      onChange={(e) => setAutoCenterPeephole(e.target.checked)}
-                      className="mr-2"
-                    />
-                    <label htmlFor="autoCenterPeephole" className="text-sm font-medium">
-                      Auto-center peephole (optimal height: 160-180cm from bottom)
-                    </label>
+                  <div className="space-y-2">
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        id="autoCenterPeephole"
+                        checked={autoCenterPeephole}
+                        onChange={(e) => setAutoCenterPeephole(e.target.checked)}
+                        className="mr-2"
+                      />
+                      <label htmlFor="autoCenterPeephole" className="text-sm font-medium">
+                        Auto-center peephole (optimal height: 160-180cm from bottom)
+                      </label>
+                    </div>
+
+                    {autoCenterPeephole && (
+                      <div className="ml-6 flex items-center">
+                        <input
+                          type="checkbox"
+                          id="preferGapPlacement"
+                          checked={preferGapPlacement}
+                          onChange={(e) => setPreferGapPlacement(e.target.checked)}
+                          className="mr-2"
+                        />
+                        <label htmlFor="preferGapPlacement" className="text-xs text-gray-700">
+                          Prefer placement between panels (in gaps) when possible
+                        </label>
+                      </div>
+                    )}
+
+                    {autoCenterPeephole && calculations.peepholeInGap !== undefined && (
+                      <div className="ml-6 text-xs text-blue-700">
+                        📍 Positioned {calculations.peepholeInGap ? 'between panels (in gap)' : 'inside a panel'}
+                      </div>
+                    )}
                   </div>
 
                   <div className="grid grid-cols-3 gap-4">
@@ -698,6 +750,75 @@ const DoorPanelCalculator = () => {
                 strokeWidth="1"
                 strokeDasharray="5,5"
               />
+
+              {/* Peephole target zone (160-180cm from bottom) */}
+              {showPeephole && (
+                <g>
+                  {/* Lower bound (180cm from bottom = doorHeight - 180) */}
+                  <line
+                    x1={20}
+                    y1={20 + (doorHeight - 180) * scale}
+                    x2={20 + scaledDoorWidth}
+                    y2={20 + (doorHeight - 180) * scale}
+                    stroke="#4A90E2"
+                    strokeWidth="1.5"
+                    strokeDasharray="8,4"
+                    opacity="0.6"
+                  />
+                  <text
+                    x={20 + scaledDoorWidth + 5}
+                    y={20 + (doorHeight - 180) * scale}
+                    fontSize="9"
+                    fill="#4A90E2"
+                    dominantBaseline="middle"
+                  >
+                    180cm
+                  </text>
+
+                  {/* Upper bound (160cm from bottom = doorHeight - 160) */}
+                  <line
+                    x1={20}
+                    y1={20 + (doorHeight - 160) * scale}
+                    x2={20 + scaledDoorWidth}
+                    y2={20 + (doorHeight - 160) * scale}
+                    stroke="#4A90E2"
+                    strokeWidth="1.5"
+                    strokeDasharray="8,4"
+                    opacity="0.6"
+                  />
+                  <text
+                    x={20 + scaledDoorWidth + 5}
+                    y={20 + (doorHeight - 160) * scale}
+                    fontSize="9"
+                    fill="#4A90E2"
+                    dominantBaseline="middle"
+                  >
+                    160cm
+                  </text>
+
+                  {/* Target zone shading */}
+                  <rect
+                    x={20}
+                    y={20 + (doorHeight - 180) * scale}
+                    width={scaledDoorWidth}
+                    height={(180 - 160) * scale}
+                    fill="#4A90E2"
+                    opacity="0.08"
+                  />
+
+                  {/* Label for target zone */}
+                  <text
+                    x={25}
+                    y={20 + (doorHeight - 170) * scale}
+                    fontSize="10"
+                    fill="#4A90E2"
+                    fontWeight="bold"
+                    opacity="0.7"
+                  >
+                    Optimal Peephole Zone
+                  </text>
+                </g>
+              )}
 
               {/* Panels */}
               {(autoCalculateSpacing || calculations.fits) && calculations.panelHeights.map((height, index) => {
