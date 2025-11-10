@@ -43,14 +43,8 @@ const DoorPanelCalculator = () => {
     silver: {
       value: 1 + Math.sqrt(2),
       name: 'Silver Ratio (δₛ)',
-      description: 'Less known than golden ratio but equally elegant. Found in paper sizes and some Japanese temple proportions.',
-      usage: 'Elegant alternative to golden ratio'
-    },
-    '5:3': {
-      value: 5/3,
-      name: '5:3 Ratio',
-      description: 'Close to golden ratio but simpler. Used in European classical architecture and window proportions.',
-      usage: 'Good balance of elegance and simplicity'
+      description: 'Less known than golden ratio but equally elegant. Found in paper sizes and some Japanese temple proportions. Creates more dramatic proportions with larger panels.',
+      usage: 'For bold, dramatic door designs with prominent panels'
     }
   };
 
