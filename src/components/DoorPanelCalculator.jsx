@@ -21,11 +21,21 @@ const DoorPanelCalculator = () => {
     let calculatedPanelGap = panelGap;
 
     if (autoCalculateSpacing) {
-      // Use golden ratio to determine edge distance relative to door height
-      // Edge distance should be 1/φ² of the available space for a balanced look
-      calculatedEdgeDistance = doorHeight / (phi * phi * 10); // ~6-8% of door height
+      // Calculate optimal spacing that ensures panels fit while maintaining golden ratio
+      // The goal: edge distance and gaps should relate by golden ratio
+      // Total space = 2*edge + (panelCount-1)*gap + panelSpace
+      // We want: gap = edge / φ
+      // So: 2*edge + (panelCount-1)*(edge/φ) + panelSpace = doorHeight
+      // Solve for edge, allocating reasonable space for panels (e.g., 70-80% of door)
 
-      // Panel gap should be related to edge distance by golden ratio
+      const panelSpaceRatio = 0.75; // Allocate 75% of door height to panels
+      const remainingSpace = doorHeight * (1 - panelSpaceRatio);
+
+      // Distribute remaining space between edges and gaps
+      // 2*edge + (panelCount-1)*(edge/φ) = remainingSpace
+      // edge * (2 + (panelCount-1)/φ) = remainingSpace
+      const edgeFactor = 2 + (panelCount - 1) / phi;
+      calculatedEdgeDistance = remainingSpace / edgeFactor;
       calculatedPanelGap = calculatedEdgeDistance / phi;
     }
 
