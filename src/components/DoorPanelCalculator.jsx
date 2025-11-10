@@ -11,12 +11,27 @@ const DoorPanelCalculator = () => {
   const [peepholeTop, setPeepholeTop] = useState(45);
   const [peepholeHeight, setPeepholeHeight] = useState(6);
   const [isProportionsCollapsed, setIsProportionsCollapsed] = useState(false);
+  const [autoCalculateSpacing, setAutoCalculateSpacing] = useState(false);
 
   const calculations = useMemo(() => {
     const phi = (1 + Math.sqrt(5)) / 2;
-    const availableWidth = doorWidth - (2 * edgeDistance);
-    const availableHeight = doorHeight - (2 * edgeDistance);
-    const totalGaps = (panelCount - 1) * panelGap;
+
+    // Auto-calculate spacing based on golden ratio if enabled
+    let calculatedEdgeDistance = edgeDistance;
+    let calculatedPanelGap = panelGap;
+
+    if (autoCalculateSpacing) {
+      // Use golden ratio to determine edge distance relative to door height
+      // Edge distance should be 1/φ² of the available space for a balanced look
+      calculatedEdgeDistance = doorHeight / (phi * phi * 10); // ~6-8% of door height
+
+      // Panel gap should be related to edge distance by golden ratio
+      calculatedPanelGap = calculatedEdgeDistance / phi;
+    }
+
+    const availableWidth = doorWidth - (2 * calculatedEdgeDistance);
+    const availableHeight = doorHeight - (2 * calculatedEdgeDistance);
+    const totalGaps = (panelCount - 1) * calculatedPanelGap;
     const availableHeightForPanels = availableHeight - totalGaps;
 
     // Define proportion ratios for different arrangements
@@ -126,9 +141,11 @@ const DoorPanelCalculator = () => {
       fits,
       totalGaps,
       panelPositions,
-      peepholeConflicts
+      peepholeConflicts,
+      calculatedEdgeDistance,
+      calculatedPanelGap
     };
-  }, [doorWidth, doorHeight, edgeDistance, panelGap, panelCount, proportionType, showPeephole, peepholeTop, peepholeHeight]);
+  }, [doorWidth, doorHeight, edgeDistance, panelGap, panelCount, proportionType, showPeephole, peepholeTop, peepholeHeight, autoCalculateSpacing]);
 
   // Scale factor for visualization
   const scale = 380 / doorWidth;
@@ -199,23 +216,43 @@ const DoorPanelCalculator = () => {
                 <label className="block text-sm font-medium mb-2">Edge Distance (cm)</label>
                 <input
                   type="number"
-                  value={edgeDistance}
+                  value={autoCalculateSpacing ? calculations.calculatedEdgeDistance.toFixed(1) : edgeDistance}
                   onChange={(e) => setEdgeDistance(Number(e.target.value))}
-                  className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
+                  disabled={autoCalculateSpacing}
+                  className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 disabled:bg-gray-200 disabled:cursor-not-allowed"
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium mb-2">Panel Gap (cm)</label>
                 <input
                   type="number"
-                  value={panelGap}
+                  value={autoCalculateSpacing ? calculations.calculatedPanelGap.toFixed(1) : panelGap}
                   onChange={(e) => setPanelGap(Number(e.target.value))}
-                  className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
+                  disabled={autoCalculateSpacing}
+                  className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 disabled:bg-gray-200 disabled:cursor-not-allowed"
                 />
               </div>
             </div>
-            
-            <div className="border-t pt-4">
+
+            <div className="mt-4">
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="autoCalculateSpacing"
+                  checked={autoCalculateSpacing}
+                  onChange={(e) => setAutoCalculateSpacing(e.target.checked)}
+                  className="mr-2"
+                />
+                <label htmlFor="autoCalculateSpacing" className="text-sm font-medium">
+                  Auto-calculate spacing using golden ratio
+                </label>
+              </div>
+              <p className="text-xs text-gray-600 mt-1 ml-6">
+                Automatically determines edge distance and panel gaps to achieve golden ratio proportions for the entire door layout
+              </p>
+            </div>
+
+            <div className="border-t pt-4 mt-4">
               <div className="flex items-center mb-3">
                 <input
                   type="checkbox"
@@ -348,8 +385,8 @@ const DoorPanelCalculator = () => {
               
               {/* Available area (minus edge distance) */}
               <rect
-                x={20 + edgeDistance * scale}
-                y={20 + edgeDistance * scale}
+                x={20 + calculations.calculatedEdgeDistance * scale}
+                y={20 + calculations.calculatedEdgeDistance * scale}
                 width={calculations.availableWidth * scale}
                 height={calculations.availableHeight * scale}
                 fill="none"
@@ -360,18 +397,18 @@ const DoorPanelCalculator = () => {
 
               {/* Panels */}
               {calculations.fits && calculations.panelHeights.map((height, index) => {
-                const panelY = 20 + edgeDistance * scale + 
+                const panelY = 20 + calculations.calculatedEdgeDistance * scale +
                   calculations.panelHeights.slice(0, index).reduce((sum, h) => sum + h, 0) * scale +
-                  index * panelGap * scale;
-                
+                  index * calculations.calculatedPanelGap * scale;
+
                 // Different colors for visual distinction
                 const colors = ['#F5DEB3', '#DEB887', '#D2B48C', '#CDAA3D', '#DAA520'];
                 const strokeColors = ['#D2691E', '#CD853F', '#A0522D', '#B8860B', '#B8860B'];
-                
+
                 return (
                   <g key={index}>
                     <rect
-                      x={20 + edgeDistance * scale}
+                      x={20 + calculations.calculatedEdgeDistance * scale}
                       y={panelY}
                       width={calculations.panelWidth * scale}
                       height={height * scale}
@@ -381,7 +418,7 @@ const DoorPanelCalculator = () => {
                     />
                     {/* Panel number label */}
                     <text
-                      x={20 + edgeDistance * scale + (calculations.panelWidth * scale) / 2}
+                      x={20 + calculations.calculatedEdgeDistance * scale + (calculations.panelWidth * scale) / 2}
                       y={panelY + (height * scale) / 2}
                       textAnchor="middle"
                       dominantBaseline="middle"
