@@ -497,11 +497,15 @@ const DoorPanelCalculator = () => {
                 ))}
               </div>
               <p><strong>Golden ratio (φ):</strong> {calculations.phi.toFixed(4)}</p>
-              <p><strong>Total used height:</strong> {calculations.totalUsedHeight.toFixed(1)} / {calculations.availableHeight} cm</p>
-              {calculations.fits ?
-                <p className="text-green-600 font-medium">✓ All panels fit perfectly</p> :
-                <p className="text-red-600 font-medium">⚠️ Panels don't fit - reduce panel count or gaps</p>
-              }
+              <p><strong>Total used height:</strong> {calculations.totalUsedHeight.toFixed(1)} / {calculations.availableHeight.toFixed(1)} cm</p>
+              {!autoCalculateSpacing && (
+                calculations.fits ?
+                  <p className="text-green-600 font-medium">✓ All panels fit perfectly</p> :
+                  <p className="text-red-600 font-medium">⚠️ Panels don't fit - reduce panel count or gaps</p>
+              )}
+              {autoCalculateSpacing && (
+                <p className="text-blue-600 font-medium">ℹ️ Spacing auto-calculated to fit panels</p>
+              )}
             </div>
           </div>
 
