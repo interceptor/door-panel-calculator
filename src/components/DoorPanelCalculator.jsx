@@ -12,7 +12,7 @@ const DoorPanelCalculator = () => {
   const [peepholeDiameter, setPeepholeDiameter] = useState(6);
   const [minEdgeDistance, setMinEdgeDistance] = useState(2);
   const [autoCenterPeephole, setAutoCenterPeephole] = useState(false);
-  const [preferGapPlacement, setPreferGapPlacement] = useState(true);
+  const [preferGapPlacement, setPreferGapPlacement] = useState(false);
   const [isProportionsCollapsed, setIsProportionsCollapsed] = useState(false);
   const [autoCalculateSpacing, setAutoCalculateSpacing] = useState(false);
   const [spacingRatioType, setSpacingRatioType] = useState('golden');
@@ -576,8 +576,8 @@ const DoorPanelCalculator = () => {
                         </div>
                         <div className="ml-6 mt-1 text-xs text-gray-500 italic">
                           {preferGapPlacement
-                            ? '→ Will choose gaps over panels when both options are at similar distances from optimal height'
-                            : '→ Will simply choose the position closest to optimal height regardless of gap or panel'}
+                            ? '→ Will always prefer gaps, even if panel placement is closer to optimal height'
+                            : '→ Will choose the position closest to optimal height (may be gap or panel)'}
                         </div>
                       </div>
                     )}
@@ -728,6 +728,33 @@ const DoorPanelCalculator = () => {
               )}
               {autoCalculateSpacing && (
                 <p className="text-blue-600 font-medium">ℹ️ Spacing auto-calculated to fit panels</p>
+              )}
+
+              {/* Peephole status in Panel Specifications */}
+              {showPeephole && calculations.peepholeConflicts.some(c => c !== null) && (
+                <div className="mt-4 pt-3 border-t border-blue-200">
+                  <p className="font-medium mb-2">Peephole Status:</p>
+                  {calculations.peepholeConflicts.map((conflict, index) => conflict && (
+                    <div key={index} className={`text-xs px-3 py-2 rounded mb-2 ${
+                      conflict.type === 'inside-safe' ? 'bg-green-100 text-green-800' :
+                      conflict.type === 'too-close-to-edge' ? 'bg-yellow-100 text-yellow-800' :
+                      'bg-red-100 text-red-800'
+                    }`}>
+                      <span className="font-medium">Panel {index + 1}: </span>
+                      {conflict.message}
+                    </div>
+                  ))}
+                  {calculations.peepholeGapStatus && (
+                    <div className={`text-xs px-3 py-2 rounded ${
+                      calculations.peepholeGapStatus.type === 'gap-safe'
+                        ? 'bg-green-100 text-green-800'
+                        : 'bg-yellow-100 text-yellow-800'
+                    }`}>
+                      <span className="font-medium">Gap: </span>
+                      {calculations.peepholeGapStatus.message}
+                    </div>
+                  )}
+                </div>
               )}
             </div>
           </div>
